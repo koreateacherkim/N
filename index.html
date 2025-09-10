@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💸 비용 N빵 계산기</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+        body {
+            font-family: 'Jua', sans-serif;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+        }
+        .card {
+            background-color: #2c2c2c;
+            border: 1px solid #444;
+        }
+        .btn-primary {
+            background-color: #ffc107;
+            color: #1a1a1a;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #ffca2c;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(255, 193, 7, 0.4);
+        }
+        .input-field {
+            background-color: #333;
+            border-color: #555;
+            color: #f0f0f0;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #ffc107;
+            box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.5);
+        }
+        .option-card {
+            border: 2px solid #555;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .option-card:hover, .option-card.selected {
+            border-color: #ffc107;
+            transform: scale(1.05);
+            background-color: #3a3a3a;
+        }
+        #countdown-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+        #countdown-timer {
+            font-size: 15vw;
+            font-weight: bold;
+            color: #ffc107;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        #animation-container {
+            font-size: 5vw;
+        }
+        #results-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+        .modal-content {
+            background-color: #2c2c2c;
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 2px solid #ffc107;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+            animation: slideIn 0.5s forwards;
+            display: flex;
+            flex-direction: column;
+            max-height: 85vh;
+        }
+        #result-details {
+            overflow-y: auto;
+            padding-right: 0.5rem; /* For scrollbar space */
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes revealItem {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        .result-item {
+            opacity: 0; /* Start hidden */
+            animation: revealItem 0.6s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="app-container" class="w-full max-w-2xl mx-auto">
+        <div class="card p-8 rounded-2xl shadow-2xl text-center">
+            <h1 class="text-4xl md:text-5xl font-bold mb-2 text-yellow-400">💸 비용 N빵 계산기 💸</h1>
+            <p class="text-gray-400 mb-8">오늘의 주인공은 누구? 두근두근 결과 발표!</p>
+            
+            <!-- Step 1: Participants -->
+            <div class="mb-6">
+                <label for="participants" class="block text-lg font-medium mb-2 text-left">1. 참여한 인원</label>
+                <input type="text" id="participants" class="input-field w-full p-3 rounded-lg" placeholder="이름을 쉼표(,)로 구분하여 입력하세요 (예: 철수, 영희, 민수)">
+            </div>
+
+            <!-- Step 2: Total Amount -->
+            <div class="mb-6">
+                <label for="totalAmount" class="block text-lg font-medium mb-2 text-left">2. 총 금액</label>
+                <input type="number" id="totalAmount" class="input-field w-full p-3 rounded-lg" placeholder="계산할 총 금액을 숫자로 입력하세요 (예: 50000)">
+            </div>
+            
+            <!-- Step 3: Division Method -->
+            <div class="mb-8">
+                <label class="block text-lg font-medium mb-2 text-left">3. 계산 방법 선택</label>
+                <div id="options-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <!-- Options will be injected here by JS -->
+                </div>
+            </div>
+
+            <!-- Step 4: Calculate Button -->
+            <button id="calculateBtn" class="btn-primary w-full py-4 text-xl font-bold rounded-lg shadow-lg">
+                결과 확인하기!
+            </button>
+
+            <!-- Developer Credit -->
+            <p class="text-xs text-gray-500 mt-8">
+                개발자: 가치있는 미래교육 연구소 대표 김병찬
+            </p>
+        </div>
+    </div>
+
+    <!-- Countdown Overlay -->
+    <div id="countdown-overlay">
+        <div id="animation-container" class="mb-8"></div>
+        <div id="countdown-timer">5</div>
+    </div>
+
+    <!-- Results Modal -->
+    <div id="results-modal">
+        <div class="modal-content w-11/12 max-w-lg">
+            <h2 id="result-title" class="text-3xl font-bold mb-2 text-yellow-400">🥁 결과 발표 🥁</h2>
+            <p id="result-subtitle" class="text-gray-300 mb-6 flex-shrink-0"></p>
+            <div id="result-details" class="space-y-3 text-lg">
+                <!-- Result details will be injected here one by one -->
+            </div>
+            <button id="closeModalBtn" class="btn-primary mt-8 px-8 py-3 text-lg font-bold rounded-lg flex-shrink-0">
+                다시하기
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const participantsInput = document.getElementById('participants');
+        const totalAmountInput = document.getElementById('totalAmount');
+        const optionsGrid = document.getElementById('options-grid');
+        const calculateBtn = document.getElementById('calculateBtn');
+        const countdownOverlay = document.getElementById('countdown-overlay');
+        const animationContainer = document.getElementById('animation-container');
+        const countdownTimer = document.getElementById('countdown-timer');
+        const resultsModal = document.getElementById('results-modal');
+        const resultTitle = document.getElementById('result-title');
+        const resultSubtitle = document.getElementById('result-subtitle');
+        const resultDetails = document.getElementById('result-details');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        
+        let selectedOption = null;
+
+        const options = [
+            { id: 1, emoji: '⚖️', title: '똑같이 나누기', min_people: 1 },
+            { id: 2, emoji: '💣', title: '한 명 몰아주기', min_people: 1 },
+            { id: 3, emoji: '😎', title: '한 명 공짜', min_people: 2 },
+            { id: 4, emoji: '🙌', title: '두 명 공짜', min_people: 3 },
+            { id: 5, emoji: '💸', title: '한 명 50% 부담', min_people: 2 },
+            { id: 6, emoji: '💰', title: '두 명 각 25% 부담', min_people: 3 },
+        ];
+
+        function renderOptions() {
+            optionsGrid.innerHTML = '';
+            options.forEach(opt => {
+                const card = document.createElement('div');
+                card.className = 'option-card p-4 rounded-lg text-center';
+                card.dataset.id = opt.id;
+                card.innerHTML = `
+                    <div class="text-4xl mb-2">${opt.emoji}</div>
+                    <div class="font-semibold">${opt.title}</div>
+                `;
+                card.addEventListener('click', () => selectOption(opt.id, card));
+                optionsGrid.appendChild(card);
+            });
+        }
+
+        function selectOption(id, element) {
+            selectedOption = id;
+            document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
+        function showAlert(message) {
+            const alertBox = document.createElement('div');
+            alertBox.style.position = 'fixed';
+            alertBox.style.top = '20px';
+            alertBox.style.left = '50%';
+            alertBox.style.transform = 'translateX(-50%)';
+            alertBox.style.backgroundColor = '#f8d7da';
+            alertBox.style.color = '#721c24';
+            alertBox.style.padding = '1rem 1.5rem';
+            alertBox.style.borderRadius = '0.5rem';
+            alertBox.style.zIndex = '1001';
+            alertBox.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+            alertBox.textContent = message;
+            document.body.appendChild(alertBox);
+            setTimeout(() => {
+                alertBox.remove();
+            }, 3000);
+        }
+
+        function startCalculation() {
+            const names = participantsInput.value.split(',').map(n => n.trim()).filter(Boolean);
+            const totalAmount = parseFloat(totalAmountInput.value);
+
+            if (names.length === 0) {
+                showAlert('참여 인원의 이름을 입력해주세요!');
+                return;
+            }
+            if (isNaN(totalAmount) || totalAmount <= 0) {
+                showAlert('올바른 총 금액을 입력해주세요!');
+                return;
+            }
+            if (selectedOption === null) {
+                showAlert('계산 방법을 선택해주세요!');
+                return;
+            }
+
+            const requiredPeople = options.find(o => o.id === selectedOption).min_people;
+            if (names.length < requiredPeople) {
+                showAlert(`이 옵션은 최소 ${requiredPeople}명이 필요합니다!`);
+                return;
+            }
+
+            startCountdown();
+        }
+
+        function startCountdown() {
+            countdownOverlay.style.opacity = '1';
+            countdownOverlay.style.pointerEvents = 'auto';
+            let count = 5;
+            const animations = ['🍻', '🎉', '💰', '💸', '💥'];
+            countdownTimer.textContent = count;
+            animationContainer.textContent = animations[count-1];
+            const interval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownTimer.textContent = count;
+                    animationContainer.textContent = animations[count-1];
+                } else {
+                    clearInterval(interval);
+                    countdownOverlay.style.opacity = '0';
+                    countdownOverlay.style.pointerEvents = 'none';
+                    calculateResults();
+                }
+            }, 1000);
+        }
+
+        function calculateResults() {
+            let names = participantsInput.value.split(',').map(n => n.trim()).filter(Boolean);
+            const totalAmount = parseFloat(totalAmountInput.value);
+            const numParticipants = names.length;
+            
+            for (let i = names.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [names[i], names[j]] = [names[j], names[i]];
+            }
+
+            let results = {};
+            names.forEach(name => results[name] = 0);
+            let subtitle = "";
+
+            switch (selectedOption) {
+                case 1:
+                    subtitle = `총액 ${totalAmount.toLocaleString()}원을 공평하게 나눕니다!`;
+                    const amountPerPerson = Math.ceil(totalAmount / numParticipants / 10) * 10;
+                    names.forEach(name => results[name] = amountPerPerson);
+                    break;
+                case 2:
+                    const unluckyOne = names[0];
+                    subtitle = `오늘의 주인공은... ${unluckyOne}님! 축하(?)합니다!`;
+                    results[unluckyOne] = totalAmount;
+                    break;
+                case 3:
+                    const luckyOne = names[0];
+                    subtitle = `행운의 주인공 ${luckyOne}님은 오늘 공짜!`;
+                    const amountToSplit3 = Math.ceil(totalAmount / (numParticipants - 1) / 10) * 10;
+                    names.slice(1).forEach(name => results[name] = amountToSplit3);
+                    break;
+                case 4:
+                    const luckyOnes = [names[0], names[1]];
+                    subtitle = `행운의 주인공 ${luckyOnes.join(', ')}님은 오늘 공짜!`;
+                    const amountToSplit4 = Math.ceil(totalAmount / (numParticipants - 2) / 10) * 10;
+                    names.slice(2).forEach(name => results[name] = amountToSplit4);
+                    break;
+                case 5:
+                    const halfPayer = names[0];
+                    subtitle = `${halfPayer}님이 50%를 화끈하게 결제!`;
+                    const halfAmount = totalAmount * 0.5;
+                    results[halfPayer] = Math.ceil(halfAmount / 10) * 10;
+                    const remainingAmount5 = totalAmount - results[halfPayer];
+                    const amountToSplit5 = Math.ceil(remainingAmount5 / (numParticipants - 1) / 10) * 10;
+                    names.slice(1).forEach(name => results[name] = amountToSplit5);
+                    break;
+                case 6:
+                    const quarterPayers = [names[0], names[1]];
+                    subtitle = `${quarterPayers[0]}님과 ${quarterPayers[1]}님이 각각 25%씩 부담!`;
+                    const quarterAmount = totalAmount * 0.25;
+                    results[quarterPayers[0]] = Math.ceil(quarterAmount / 10) * 10;
+                    results[quarterPayers[1]] = Math.ceil(quarterAmount / 10) * 10;
+                    const remainingAmount6 = totalAmount - results[quarterPayers[0]] - results[quarterPayers[1]];
+                    const amountToSplit6 = Math.ceil(remainingAmount6 / (numParticipants - 2) / 10) * 10;
+                    names.slice(2).forEach(name => results[name] = amountToSplit6);
+                    break;
+            }
+            displayResultsAnimated(results, subtitle);
+        }
+
+        function displayResultsAnimated(results, subtitle) {
+            resultSubtitle.textContent = subtitle;
+            resultDetails.innerHTML = '';
+            
+            const resultEntries = Object.entries(results);
+
+            resultEntries.forEach(([name, amount], index) => {
+                // Create item but don't show yet
+                setTimeout(() => {
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'result-item flex justify-between items-center p-3 bg-gray-700 rounded-lg';
+                    resultItem.innerHTML = `
+                        <span class="font-semibold">${name}</span>
+                        <span class="font-bold text-yellow-400">${amount.toLocaleString()} 원</span>
+                    `;
+                    resultDetails.appendChild(resultItem);
+                    resultDetails.scrollTop = resultDetails.scrollHeight; // Auto-scroll to bottom
+                }, index * 500); // 0.5초 간격으로 한 명씩 공개
+            });
+
+            resultsModal.style.opacity = '1';
+            resultsModal.style.pointerEvents = 'auto';
+        }
+
+        function resetApp() {
+            resultsModal.style.opacity = '0';
+            resultsModal.style.pointerEvents = 'none';
+            participantsInput.value = '';
+            totalAmountInput.value = '';
+            selectedOption = null;
+            document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+        }
+
+        calculateBtn.addEventListener('click', startCalculation);
+        closeModalBtn.addEventListener('click', resetApp);
+        
+        renderOptions();
+    </script>
+</body>
+</html>
+
